@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drawing Page</title>
+    <link rel='stylesheet' type='text/css' media='screen' href='style4.css'>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Slackey&display=swap" rel="stylesheet">
+</head>
+ 
+<body>
+        <div id="drawingAndGameContainer">
+            <div id="drawingContainer">
+                <div id="drawingControls">
+                    <div>
+                        <label for="colorPicker">Drawing Color:</label>
+                        <input type="color" id="colorPicker" value="#000000">
+                    </div>
+                    <div>
+                        <label for="bgColorPicker">Background Color:</label>
+                        <input type="color" id="bgColorPicker" value="#000000">
+                    </div>
+                    <div>
+                        <label for="brushSize">Brush Size:</label>
+                        <input type="range" id="brushSize" min="1" max="50" value="5">
+                    </div>
+                </div>
+                <canvas id="drawingCanvas" width="800" height="600"></canvas>
+                <div class="controls">
+                    <button onclick="toggleBrush()"><img src="./assets/brush.png" alt="Brush" width="35"></button>
+                    <button onclick="clearCanvas()"><img src="./assets/clear.png" alt="Clear" width="35"></button>
+                    <button onclick="undo()"><img src="./assets/undo.png" alt="Undo" width="35"></button>
+                    <button onclick="redo()"><img src="./assets/redo.png" alt="Redo" width="35"></button>
+                    <button onclick="toggleEraser()"><img src="./assets/eraser.png" alt="Eraser" width="35"></button>
+                    <button onclick="downloadDrawing()">Download</button> <!-- Add download button -->
+                </div>
+            </div>
+        </div>
+        <div id="logo">PaintOPaint.io</div>
+    </div>
+    
+
+    <script>
+        const canvas = document.getElementById('drawingCanvas');
+        const context = canvas.getContext('2d');
+        const colorPicker = document.getElementById('colorPicker');
+        const bgColorPicker = document.getElementById('bgColorPicker');
+        const brushSizeInput = document.getElementById('brushSize');
+
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let strokeColor = '#000';
+        let drawHistory = [];
+        let historyIndex = -1;
+        let eraserEnabled = false;
+        let drawTimeout; // Variable to store timeout ID
+
+        function startDrawing(e) {
+            isDrawing = true;
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+            context.strokeStyle = strokeColor;
+            context.lineWidth = brushSizeInput.value;
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            context.beginPath();
+            context.moveTo(lastX, lastY);
+            context.lineTo(e.offsetX, e.offsetY);
+            context.stroke();
+            lastX = e.offsetX;
+            lastY = e.offsetY;
+
+            // Clear previous timeout to prevent multiple saves in a short interval
+            clearTimeout(drawTimeout);
+
+            // Save drawing state with a delay
+            drawTimeout = setTimeout(function () {
+                drawHistory.push(canvas.toDataURL());
+            }, 500); // Adjust the delay (in milliseconds) as needed
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            // Reset history index when a new drawing action starts
+            historyIndex = drawHistory.length - 1;
+        }
+
+        function clearCanvas() {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            drawHistory = [];
+            historyIndex = -1;
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                restoreCanvasState(historyIndex);
+            }
+        }
+
+        function redo() {
+            if (historyIndex < drawHistory.length - 1) {
+                historyIndex++;
+                restoreCanvasState(historyIndex);
+            }
+        }
+
+        function restoreCanvasState(index) {
+            const img = new Image();
+            img.onload = function () {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                context.drawImage(img, 0, 0);
+            };
+            img.src = drawHistory[index];
+        }
+
+        function toggleEraser() {
+            eraserEnabled = !eraserEnabled;
+            if (eraserEnabled) {
+                strokeColor = bgColorPicker.value; // Set stroke color to background color
+            } else {
+                strokeColor = colorPicker.value; // Restore original stroke color
+            }
+        }
+
+        function toggleBrush() {
+            eraserEnabled = false; // Disable eraser
+            strokeColor = colorPicker.value; // Set stroke color to the selected color
+        }
+
+        colorPicker.addEventListener('change', function () {
+            if (!eraserEnabled) {
+                strokeColor = this.value;
+            }
+        });
+
+        bgColorPicker.addEventListener('change', function () {
+            canvas.style.backgroundColor = this.value;
+        });
+
+        brushSizeInput.addEventListener('input', function () {
+            context.lineWidth = this.value;
+        });
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        function downloadDrawing() {
+            const link = document.createElement('a');
+            link.download = 'drawing.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+    </script>
+
+</body>
+
+</html>
